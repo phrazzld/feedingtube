@@ -12,3 +12,6 @@ instance/
 
 # virtualenv
 venv/
+
+# redis
+redis-stable/
