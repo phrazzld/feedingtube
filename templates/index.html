@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>FeedingTube</title>
+</head>
+<body>
+<div class="container">
+    <h1>FeedingTube</h1>
+    {% for message in get_flashed_messages() %}
+    <p style="color:red;">{{ message }}</p>
+    {% endfor %}
+    <form action="" method="post" name="tube">
+        <p>Email: <input type="text" name="email" value="{{ email }}"></p>
+        <p>Tag: <input type="text" name="tag" value="{{ tag }}"></p>
+        <input type="submit" name="submit" value="Submit">
+    </form>
+</div>
+</body>
+</html>
