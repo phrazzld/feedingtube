@@ -29,18 +29,16 @@ import flickrapi, json, urllib
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
 flickr = flickrapi.FlickrAPI(flickr_key, flickr_secret, format='parsed-json')
-home = os.path.getcwd()
+home = os.getcwd()
 
 # create bucket directory if necessary
 def find_bucket(path):
-    # TODO: sanitize the pathname, make uniq w/timestamp
     if not os.path.exists(path):
         os.mkdir(path)
 
 # return a page of flickr photos as JSON
 def get_page(tag, page=1):
-    # Change to per_page=500
-    silo = flickr.photos.search(tags=tag, per_page=5, page=page)
+    silo = flickr.photos.search(tags=tag, per_page=500, page=page)
     food = silo['photos']['photo']
     return food
 
@@ -61,8 +59,7 @@ def fill_bucket(food, path):
 
 # get buckets of food
 def fetch_buckets(tag, path, n=1):
-    # TODO: Change to per_page=500
-    silo = flickr.photos.search(tags=tag, per_page=5, page=1)
+    silo = flickr.photos.search(tags=tag, per_page=500, page=1)
     total = silo['photos']['pages']
     if n > total or n <= 0:
         n = total
@@ -80,14 +77,14 @@ def get_food(email, tag):
         path = os.path.join(home, 'foodstuff', ''.join([email.split("@")[0], clean_tag]))
         find_bucket(path)
         # fill with images
-        fetch_buckets(tag, path, 1)
+        fetch_buckets(tag, path, 3)
         # zip directory contents
         shutil.make_archive(clean_tag, 'zip', path)
         # build the email
         msg = Message(subject='Dinner\'s ready!',
                       sender='no-reply@feedingtube.host',
                       recipients=[email])
-        msg.body = 'Whadup whadup! Your path was {0}'.format(path)
+        msg.body = 'Your images for {0} are attached as a zip file.'.format(tag)
         # attach the zipfile to the email
         zipfile = '.'.join([clean_tag, 'zip'])
         os.chdir(path)
@@ -96,6 +93,11 @@ def get_food(email, tag):
         # send the email
         os.chdir(home)
         mail.send(msg)
+        # wipe path
+        shutil.rmtree(path)
+        # after rmtree, zip files bubble up -- kill 'em!
+        if os.path.exists(zipfile):
+            os.remove(zipfile)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -107,7 +109,7 @@ def index():
     session['tag'] = tag
 
     get_food.apply_async(args=[email, tag])
-    flash('Sometimes this part takes a while.\nWe\'ll send it all over to {0} when it\'s ready.\nThanks for being patient!'.format(email))
+    flash('Sometimes this part takes a while. We\'ll send it all over to {0} when it\'s ready. Thanks for being patient!'.format(email))
 
     return render_template('index.html', email=session.get('email', ''), tag=session.get('tag', ''))
 
