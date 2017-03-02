@@ -4,6 +4,7 @@ DEBUG = False
 # Point Celery at Redis
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_TASK_SERIALIZER = 'json'
 
 # Use Gmail for our SMTP email server
 MAIL_SERVER = 'smtp.gmail.com'
