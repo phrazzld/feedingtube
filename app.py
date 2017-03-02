@@ -18,8 +18,18 @@ mail = Mail(app)
 
 # initialize flickr object and home dir
 import flickrapi, json, urllib
+from ratelimit import rate_limited
 flickr = flickrapi.FlickrAPI(app.config['FLICKR_API_KEY'], app.config['FLICKR_API_SECRET'], format='parsed-json')
 home = os.getcwd()
+
+# ratelimit each hit against flickrapi
+@rate_limited(1)
+def initialize_silo(tag, per_page, page):
+    return flickr.photos.search(tags=tag, per_page=per_page, page=page)
+
+@rate_limited(1)
+def get_photo_sizes(photo_id):
+    return flickr.photos.getSizes(photo_id=photo_id)
 
 # create bucket directory if necessary
 def find_bucket(path):
@@ -28,14 +38,15 @@ def find_bucket(path):
 
 # return a page of flickr photos as JSON
 def get_page(tag, page=1):
-    silo = flickr.photos.search(tags=tag, per_page=500, page=page)
+    # silo we fetch food from, per_page max = 500
+    silo = initialize_silo(tag, 500, page)
     food = silo['photos']['photo']
     return food
 
 # loop through photos, pick and download best size for each
 def fill_bucket(food, path):
     for f in food:
-        options = flickr.photos.getSizes(photo_id=f['id'])
+        options = get_photo_sizes(f['id'])
         best = None
         for option in options['sizes']['size']:
             best = option['source']
@@ -44,12 +55,12 @@ def fill_bucket(food, path):
         if best:
             name = ''.join(e for e in f['title'] if e.isalnum()) + f['id']
             # sometimes names are too long so we slice 'em up
-            name = '.'.join([name[:200], 'jpg'])
+            name = '.'.join([name[:100], 'jpg'])
             urllib.request.urlretrieve(best, os.path.join(path, name))
 
 # get buckets of food
 def fetch_buckets(tag, path, n=1):
-    silo = flickr.photos.search(tags=tag, per_page=500, page=1)
+    silo = initialize_silo(tag, 5, 1)
     total = silo['photos']['pages']
     if n > total or n <= 0:
         n = total
@@ -58,7 +69,7 @@ def fetch_buckets(tag, path, n=1):
         fill_bucket(food, path)
 
 
-# feedingtube functions
+# feedingtube main function
 @celery.task
 def get_food(email, tag):
     with app.app_context():
@@ -67,7 +78,7 @@ def get_food(email, tag):
         path = os.path.join(home, 'foodstuff', ''.join([email.split("@")[0], clean_tag]))
         find_bucket(path)
         # fill with images
-        fetch_buckets(tag, path, 3)
+        fetch_buckets(tag, path, 1)
         # zip directory contents
         shutil.make_archive(clean_tag, 'zip', path)
         # build the email
@@ -88,6 +99,7 @@ def get_food(email, tag):
         # after rmtree, zip files bubble up -- kill 'em!
         if os.path.exists(zipfile):
             os.remove(zipfile)
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

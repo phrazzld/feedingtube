@@ -15,6 +15,7 @@ itsdangerous==0.24
 kombu==3.0.30
 oauthlib==2.0.1
 pytz==2014.10
+ratelimit==1.2.0
 redis==2.10.3
 requests==2.13.0
 requests-oauthlib==0.8.0
