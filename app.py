@@ -4,31 +4,21 @@ from flask import Flask, render_template, request, flash, redirect, url_for, ses
 from flask_mail import Mail, Message
 from celery import Celery
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'ohsosecret-meohmy'
-app.config['CELERY_BROKER_URL'] = 'redis://localhost:6379/0'
-app.config['CELERY_RESULT_BACKEND'] = 'redis://localhost:6379/0'
+# initialize flask app and configs
+app = Flask(__name__, instance_relative_config=True)
+app.config.from_object('config')
+app.config.from_pyfile('config.py')
 
+# start up celery
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
-
-# Flask-Mail configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-app.config['MAIL_DEFAULT_SENDER'] = 'no-reply@feedingtube.host'
 
 # initialize mail
 mail = Mail(app)
 
-# feedingtube config
+# initialize flickr object and home dir
 import flickrapi, json, urllib
-flickr_key = os.environ.get('FLICKR_API_KEY')
-flickr_secret = os.environ.get('FLICKR_API_SECRET')
-flickr = flickrapi.FlickrAPI(flickr_key, flickr_secret, format='parsed-json')
+flickr = flickrapi.FlickrAPI(app.config['FLICKR_API_KEY'], app.config['FLICKR_API_SECRET'], format='parsed-json')
 home = os.getcwd()
 
 # create bucket directory if necessary
@@ -107,10 +97,8 @@ def index():
     tag = request.form['tag']
     session['email'] = email
     session['tag'] = tag
-
     get_food.apply_async(args=[email, tag])
     flash('Sometimes this part takes a while. We\'ll send it all over to {0} when it\'s ready. Thanks for being patient!'.format(email))
-
     return render_template('index.html', email=session.get('email', ''), tag=session.get('tag', ''))
 
 
