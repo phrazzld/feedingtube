@@ -3,23 +3,20 @@ import shutil
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 from flask_mail import Mail, Message
 from celery import Celery
-from dotenv import load_dotenv
 
 # initialize flask app and configs
 app = Flask(__name__)
 app.config.from_object('config')
 
 APP_ROOT = os.path.join(os.path.dirname(__file__), '.')
-dotenv_path = os.path.join(APP_ROOT, '.env')
-load_dotenv(dotenv_path)
 
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
 # start up celery
-celery = Celery(app.name, broker=os.getenv('CELERY_BROKER_URL'))
+celery = Celery(app.name, broker=os.environ.get('CELERY_BROKER_URL'))
 celery.conf.update(app.config)
 # for heroku w/celery and RedisToGo add-on
-broker_url = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
+broker_url = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379')
 celery.conf.update(BROKER_URL=broker_url,
                    CELERY_RESULT_BACKEND=broker_url)
 
@@ -29,8 +26,8 @@ mail = Mail(app)
 # initialize flickr object
 import flickrapi, json, urllib
 from ratelimit import rate_limited
-flickr_key = os.getenv('FLICKR_API_KEY')
-flickr_secret = os.getenv('FLICKR_API_SECRET')
+flickr_key = os.environ.get('FLICKR_API_KEY')
+flickr_secret = os.environ.get('FLICKR_API_SECRET')
 print("flickr_key is %s and flickr_secret is %s" % (flickr_key, flickr_secret))
 flickr = flickrapi.FlickrAPI(flickr_key, flickr_secret, format='parsed-json')
 
