@@ -24,7 +24,7 @@ celery.conf.update(BROKER_URL=broker_url,
 mail = Mail(app)
 
 # initialize flickr object
-import flickrapi, json, urllib
+import flickrapi, json, urllib.request
 from ratelimit import rate_limited
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
@@ -54,7 +54,6 @@ def get_page(tag, page=1):
     return food
 
 # loop through photos, pick and download best size for each
-import urllib.request
 def fill_bucket(food, path):
     for f in food:
         options = get_photo_sizes(f['id'])
