@@ -3,6 +3,7 @@ import shutil
 from flask import Flask, render_template, request, flash, redirect, url_for, session
 from flask_mail import Mail, Message
 from celery import Celery
+import sqlite3
 
 # initialize flask app and configs
 app = Flask(__name__)
