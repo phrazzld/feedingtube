@@ -10,7 +10,7 @@ app.config.from_object('config')
 
 APP_ROOT = os.path.join(os.path.dirname(__file__))
 print("APP_ROOT is {0}".format(APP_ROOT))
-print("listdir(APP_ROOT) is {0}".format(os.path.listdir(APP_ROOT)))
+print("listdir(APP_ROOT) is {0}".format(os.listdir(APP_ROOT)))
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
