@@ -28,7 +28,6 @@ import flickrapi, json, urllib
 from ratelimit import rate_limited
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
-print("flickr_key is %s and flickr_secret is %s" % (flickr_key, flickr_secret))
 flickr = flickrapi.FlickrAPI(flickr_key, flickr_secret, format='parsed-json')
 
 # ratelimit each hit against flickrapi

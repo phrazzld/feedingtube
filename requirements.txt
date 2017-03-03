@@ -15,7 +15,6 @@ gunicorn==19.6.0
 itsdangerous==0.24
 kombu==3.0.30
 oauthlib==2.0.1
-python-dotenv==0.6.3
 pytz==2014.10
 ratelimit==1.2.0
 redis==2.10.3
