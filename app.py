@@ -9,8 +9,6 @@ app = Flask(__name__)
 app.config.from_object('config')
 
 APP_ROOT = os.path.join(os.path.dirname(__file__))
-print("APP_ROOT is {0}".format(APP_ROOT))
-print("listdir(APP_ROOT) is {0}".format(os.listdir(APP_ROOT)))
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
@@ -43,6 +41,8 @@ def get_photo_sizes(photo_id):
 
 # create bucket directory if necessary
 def find_bucket(path):
+    if not os.path.exists(os.path.join(APP_ROOT, 'foodstuff')):
+        os.mkdir(os.path.join(APP_ROOT, 'foodstuff'))
     if not os.path.exists(path):
         os.mkdir(path)
 
