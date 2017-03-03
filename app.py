@@ -8,7 +8,8 @@ from celery import Celery
 app = Flask(__name__)
 app.config.from_object('config')
 
-APP_ROOT = os.path.join(os.path.dirname(__file__), '..')
+APP_ROOT = os.path.join(os.path.dirname(__file__))
+print("APP_ROOT is {0}".format(APP_ROOT))
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
