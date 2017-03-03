@@ -6,13 +6,14 @@ from celery import Celery
 from dotenv import load_dotenv
 
 # initialize flask app and configs
-app = Flask(__name__, instance_relative_config=True)
+app = Flask(__name__)
 app.config.from_object('config')
-app.config.from_pyfile('config.py')
 
 APP_ROOT = os.path.join(os.path.dirname(__file__), '.')
 dotenv_path = os.path.join(APP_ROOT, '.env')
 load_dotenv(dotenv_path)
+
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 # start up celery
 celery = Celery(app.name, broker=os.getenv('CELERY_BROKER_URL'))
