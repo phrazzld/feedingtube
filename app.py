@@ -24,7 +24,7 @@ celery.conf.update(BROKER_URL=broker_url,
 mail = Mail(app)
 
 # initialize flickr object
-import flickrapi, json, urllib.request
+import flickrapi, json, urllib
 from ratelimit import rate_limited
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
