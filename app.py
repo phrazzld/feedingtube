@@ -13,7 +13,7 @@ APP_ROOT = os.path.join(os.path.dirname(__file__), '.')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 
 # start up celery
-celery = Celery(app.name, broker=os.environ.get('CELERY_BROKER_URL'))
+celery = Celery(app.name, broker=os.environ.get('REDISTOGO_URL', 'CELERY_BROKER_URL'))
 celery.conf.update(app.config)
 # for heroku w/celery and RedisToGo add-on
 broker_url = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379')
