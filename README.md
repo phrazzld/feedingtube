@@ -15,10 +15,10 @@ pip install -r requirements.txt
 
 Now before you will be able to run this project on your local machine, you'll need to create a directory called `instance` and set up a `config.py` file inside. This file will contain credentials for accessing the FlickrAPI and the SMTP email server. `config.py` should look like:
 ```python
-MAIL_USERNAME="username@gmail.com"
-MAIL_PASSWORD="your-email-password"
-FLICKR_API_KEY="long-string-from-flickr"
-FLICKR_API_SECRET="shorter-string-from-flickr"
+MAIL_USERNAME = "username@gmail.com"
+MAIL_PASSWORD = "your-email-password"
+FLICKR_API_KEY = "long-string-from-flickr"
+FLICKR_API_SECRET = "shorter-string-from-flickr"
 ```
 I've programmed feedingtube's SMTP email server configurations to be Gmail specific in `app.py`, but feel free to change those settings and use a different service. If you need Flickr API credentials, you can get them [here](https://www.flickr.com/services/apps/create/apply).
 
