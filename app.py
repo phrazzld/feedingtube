@@ -54,6 +54,7 @@ def get_page(tag, page=1):
     return food
 
 # loop through photos, pick and download best size for each
+import urllib.request
 def fill_bucket(food, path):
     for f in food:
         options = get_photo_sizes(f['id'])
