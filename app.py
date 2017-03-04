@@ -19,7 +19,6 @@ redis_url = os.environ.get('REDISTOGO_URL')
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
 
-
 # start up celery
 celery = Celery(app.name, broker=redis_url)
 celery.conf.update(app.config)
@@ -78,9 +77,7 @@ def fill_up(tag, path, amount=10):
             # ensure name is not too long
             name = '.'.join([name[:100], 'jpg'])
             # remove unicode chars
-            print("name before utf-8 {0}".format(name))
             name = name.encode('utf-8','ignore').decode('utf-8')
-            print("downloading %s into %s" % (name, path))
             urllib.urlretrieve(best, os.path.join(path, name))
         i += 1
         if i >= amount:
@@ -97,7 +94,6 @@ def get_food(email, tag, amount):
         find_bucket(path)
         # fill with images
         fill_up(tag, path, amount)
-        #fetch_buckets(tag, path, 1)
         # zip directory contents
         shutil.make_archive(clean_tag, 'zip', path)
         # build the email

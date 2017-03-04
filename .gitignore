@@ -1,4 +1,13 @@
-venv/
-.env
+# Byte-compiled / optimized / DLL files
+__pycache__/
 *.py[cod]
+
+# Distribution / packaging
+env/
+.env
+
+# virtualenv
+venv/
+
+# redis
 redis-stable/
