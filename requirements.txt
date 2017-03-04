@@ -11,6 +11,7 @@ blinker==1.4
 celery==4.0.2
 click==6.7
 flickr-api==0.5
+gunicorn==19.7.0
 itsdangerous==0.24
 kombu==4.0.2
 lxml==3.7.3
