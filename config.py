@@ -1,9 +1,12 @@
+import os
+
 # Don't let users run arbitrary Python code in production
 DEBUG = False
 
 # Point Celery at Redis
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+BROKER_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379/0')
+CELERY_BROKER_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379/0')
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_REDIS_MAX_CONNECTIONS = 10
 

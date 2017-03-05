@@ -15,16 +15,12 @@ APP_ROOT = os.path.join(os.path.dirname(__file__))
 dotenv_path = os.path.join(APP_ROOT, '.env')
 load_dotenv(dotenv_path)
 
-redis_url = os.environ.get('REDISTOGO_URL')
 flickr_key = os.environ.get('FLICKR_API_KEY')
 flickr_secret = os.environ.get('FLICKR_API_SECRET')
 
 # start up celery
-celery = Celery(app.name, broker=redis_url)
+celery = Celery(app.name, broker=os.environ.get('BROKER_URL'))
 celery.conf.update(app.config)
-# for heroku w/celery and RedisToGo add-on
-celery.conf.update(BROKER_URL=redis_url,
-                   CELERY_RESULT_BACKEND=redis_url)
 
 # initialize mail
 app.config.update(
