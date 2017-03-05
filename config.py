@@ -13,6 +13,8 @@ BROKER_TRANSPORT_OPTIONS = {
     "max_connections": 2
 }
 BROKER_POOL_LIMIT = None
+CELERY_IGNORE_RESULT = True
+CELERY_STORE_ERRORS_EVEN_IF_IGNORED = True
 
 # Use Gmail for our SMTP email server
 MAIL_SERVER = 'smtp.gmail.com'
