@@ -122,7 +122,7 @@ def index():
     session['email'] = email
     session['tag'] = tag
     session['amount'] = amount
-    get_food.apply_async(args=[email, tag, int(amount)])
+    get_food.delay(email, tag, int(amount))
     flash('Sometimes this part takes a while. We\'ll send it all over to {0} when it\'s ready. Thanks for being patient!'.format(email))
     return render_template('index.html', email=session.get('email', ''), tag=session.get('tag', ''), amount=session.get('amount', ''))
 

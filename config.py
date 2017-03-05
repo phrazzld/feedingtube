@@ -9,6 +9,7 @@ CELERY_BROKER_URL = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.environ.get('REDISTOGO_URL', 'redis://localhost:6379/0')
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_REDIS_MAX_CONNECTIONS = 10
+BROKER_POOL_LIMIT=0
 
 # Use Gmail for our SMTP email server
 MAIL_SERVER = 'smtp.gmail.com'
