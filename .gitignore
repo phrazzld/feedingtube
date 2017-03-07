@@ -14,3 +14,6 @@ venv/
 
 # redis
 redis-stable/
+
+# instance config
+instance/

@@ -4,30 +4,22 @@ from flask import Flask, render_template, request, flash, redirect, url_for, ses
 from flask_mail import Mail, Message
 from celery import Celery
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 
 # initialize flask app and configs
-app = Flask(__name__)
+app = Flask(__name__, instance_relative_config=True)
 app.config.from_object('config')
+app.config.from_pyfile('config.py')
 
 APP_ROOT = os.path.join(os.path.dirname(__file__))
 # load environment variables
-dotenv_path = os.path.join(APP_ROOT, '.env')
-load_dotenv(dotenv_path)
-
-flickr_key = os.environ.get('FLICKR_API_KEY')
-flickr_secret = os.environ.get('FLICKR_API_SECRET')
+flickr_key = app.config['FLICKR_API_KEY']
+flickr_secret = app.config['FLICKR_API_SECRET']
 
 # start up celery
-celery = Celery(app.name, broker=os.environ.get('BROKER_URL'))
+celery = Celery(app.name, broker=app.config['BROKER_URL'])
 celery.conf.update(app.config)
 
 # initialize mail
-app.config.update(
-    SECRET_KEY=os.environ.get('SECRET_KEY'),
-    MAIL_USERNAME=os.environ.get('MAIL_USERNAME'),
-    MAIL_PASSWORD=os.environ.get('MAIL_PASSWORD')
-)
 mail = Mail(app)
 
 # initialize flickr object
@@ -86,7 +78,9 @@ def get_food(email, tag, amount):
     with app.app_context():
         # nav to appropriate directory
         clean_tag = ''.join(tag.split())
-        path = os.path.join(APP_ROOT, 'foodstuff', ''.join([email.split("@")[0], clean_tag]))
+        container = email + clean_tag
+        container = ''.join(e for e in container if e.isalnum())
+        path = os.path.join(APP_ROOT, 'foodstuff', container)
         find_bucket(path)
         # fill with images
         fill_up(tag, path, amount)
