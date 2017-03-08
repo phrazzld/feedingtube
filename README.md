@@ -13,8 +13,8 @@ $ source venv/bin/activate
 $ pip install -r requirements.txt
 ```
 
-feedingtube depends on a few environment variables, to access the FlickrAPI and send email. Make a file called `.env` that looks like this:
-```
+feedingtube uses instance relative config, so you're going to need to set that up. Make a directory called "instance" and a file in that directory called `config.py`. It should look something like this:
+```python
 SECRET_KEY="top-secret-so-shhh"
 MAIL_USERNAME="username@gmail.com"
 MAIL_PASSWORD="your-password"
@@ -38,4 +38,4 @@ Okay, so now you've set up feedingtube on your local machine and you've got your
 Enter your email in the *email* field, "apple" in the *tag* field, and "20" in the *amount* field, and submit the form. You should see a message in red thanking you for your patience as your images are fetched.
 
 ### Behind the scenes
-feedingtube is going to the FlickrAPI and asking for *amount* of *tag* pictures. It downloads them one-by-one, zips them up, and emails them to *email*. 
+feedingtube is going to the FlickrAPI and asking for *amount* of *tag* pictures. It downloads them one-by-one, zips them up, and emails them to *email*.
