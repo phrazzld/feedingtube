@@ -24,6 +24,19 @@ FLICKR_API_SECRET="slightly-shorter-alphanumeric-string"
 
 I've programmed feedingtube's SMTP email server configurations to be Gmail specific in `config.py`, but feel free to change those settings and use a different service. If you need Flickr API credentials, you can get them [here](https://www.flickr.com/services/apps/create/apply).
 
+You will also need Amazon Web Services credentials, since feedingtube saves everything it downloads to s3. Directly from the boto3 docs:
+
+*If you have the AWS CLI installed, then you can use it to configure your credentials file:*
+```
+$ aws configure
+```
+
+*Alternatively, you can create the credential file yourself. By default, its location is at ~/.aws/credentials:*
+```
+[default]
+aws_access_key_id = YOUR_ACCESS_KEY
+aws_secret_access_key = YOUR_SECRET_KEY
+
 Open three terminal windows and run the commands below. You will need to be in your virtual environment to start your Celery worker and the Flask local server, but not Redis. To get out of your virtual environment, just run `deactivate`.
 
 (terminal 1) `$ ./run-redis.sh`
