@@ -75,17 +75,21 @@ def fill_up(tag, bucketname, path, amount=10):
     img_num = 1
     for page in range(1, total_pages):
         for photo in silo.find_all('photo'):
-            photo_id = photo['id']
-            sizes = get_photo_sizes(photo_id)
-            image_source = None
-            image_source = sizes[-1]['source'] # always grab the big img
-            if image_source:
-                name = name_img_file(photo_id, photo['title'])
-                r = requests.get(image_source)
-                i = Image.open(StringIO(r.content)).convert('RGB')
-                i.save(os.path.join(path, name), "JPEG")
-                s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
-                os.remove(os.path.join(path, name))
+            try:
+                photo_id = photo['id']
+                sizes = get_photo_sizes(photo_id)
+                image_source = None
+                image_source = sizes[-1]['source'] # always grab the big img
+                if image_source:
+                    name = name_img_file(photo_id, photo['title'])
+                    r = requests.get(image_source)
+                    i = Image.open(StringIO(r.content)).convert('RGB')
+                    i.save(os.path.join(path, name), "JPEG")
+                    s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
+                    os.remove(os.path.join(path, name))
+            except IOError as e:
+                print("I/O error({0}): {1}").format(e.errno, e.strerror)
+                print("Image #: {0}; Source: {1}; Name: {2}").format(img_num, image_source, name)
             img_num += 1
             if img_num >= amount:
                 return
