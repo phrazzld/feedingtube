@@ -17,3 +17,9 @@ redis-stable/
 
 # instance config
 instance/
+
+# debugging
+logs/
+
+# celery
+celerybeat-schedule
