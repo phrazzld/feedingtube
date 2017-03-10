@@ -82,7 +82,7 @@ def fill_up(tag, bucketname, path, amount=10):
             if image_source:
                 name = name_img_file(photo_id, photo['title'])
                 r = requests.get(image_source)
-                i = Image.open(StringIO(r.content))
+                i = Image.open(StringIO(r.content)).convert('RGB')
                 i.save(os.path.join(path, name), "JPEG")
                 s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
                 os.remove(os.path.join(path, name))
