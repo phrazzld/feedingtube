@@ -4,6 +4,9 @@ from flask import Flask, render_template, request, flash, redirect, url_for, ses
 from flask_mail import Mail, Message
 from celery import Celery
 from bs4 import BeautifulSoup
+import requests
+from PIL import Image
+from StringIO import StringIO
 
 # initialize flask app and configs
 app = Flask(__name__, instance_relative_config=True)
@@ -28,6 +31,10 @@ from ratelimit import rate_limited
 flickr_api.set_keys(api_key = flickr_key, api_secret = flickr_secret)
 from flickr_api.api import flickr
 
+# initialize boto for access to Amazon S3
+import boto3
+s3 = boto3.resource('s3')
+
 # create bucket directory if necessary
 def find_bucket(path):
     if not os.path.exists(os.path.join(APP_ROOT, 'foodstuff')):
@@ -48,28 +55,36 @@ def get_photo_sizes(photo_id):
     soup = BeautifulSoup(sizes, 'lxml-xml').find_all('size')
     return soup
 
-def fill_up(tag, path, amount=10):
+def fill_up(tag, bucketname, path, amount=10):
     silo = get_photo_page(tag, 500, 1)
-    total = silo.photos['total']
+    total = int(silo.photos['total'])
     if amount > total or amount <= 0:
         amount = total
-    i = 0
-    for photo in silo.find_all('photo'):
-        photo_id = photo['id']
-        # download photo to path
-        sizes = get_photo_sizes(photo_id)
-        best = None
-        best = sizes[-1]['source']
-        if best:
-            name = photo_id + ''.join(e for e in photo['title'] if e.isalnum())
-            # ensure name is not too long
-            name = '.'.join([name[:100], 'jpg'])
-            # remove unicode chars
-            name = name.encode('utf-8','ignore').decode('utf-8')
-            urllib.urlretrieve(best, os.path.join(path, name))
-        i += 1
-        if i >= amount:
-            break
+    total_pages = total / 500 + 1
+    img_num = 1
+    for page in range(1, total_pages):
+        for photo in silo.find_all('photo'):
+            photo_id = photo['id']
+            # download photo to path
+            sizes = get_photo_sizes(photo_id)
+            best = None
+            best = sizes[-1]['source']
+            if best:
+                name = photo_id + ''.join(e for e in photo['title'] if e.isalnum())
+                # ensure name is not too long
+                name = '.'.join([name[:100], 'jpg'])
+                # remove unicode chars
+                name = name.encode('utf-8','ignore').decode('utf-8')
+                r = requests.get(best)
+                i = Image.open(StringIO(r.content))
+                i.save(os.path.join(path, name), "JPEG")
+                #urllib.urlretrieve(best, os.path.join(path, name))
+                s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
+                os.remove(os.path.join(path, name))
+            img_num += 1
+            if img_num >= amount:
+                return
+        silo = get_photo_page(tag, 500, page+1)
 
 
 # feedingtube main function
@@ -80,30 +95,42 @@ def get_food(email, tag, amount):
         clean_tag = ''.join(tag.split())
         container = email + clean_tag
         container = ''.join(e for e in container if e.isalnum())
+        bucketname = 'feedingtube-a-' + ''.join(e for e in email if e.isalnum()) + '-' + clean_tag
         path = os.path.join(APP_ROOT, 'foodstuff', container)
+        # fresh S3 bucket
+        bucket = s3.create_bucket(Bucket=bucketname)
         find_bucket(path)
         # fill with images
-        fill_up(tag, path, amount)
+        fill_up(tag, bucketname, path, amount)
         # zip directory contents
-        shutil.make_archive(clean_tag, 'zip', path)
+        #shutil.make_archive(clean_tag, 'zip', path)
         # build the email
         msg = Message(subject='Dinner\'s ready!',
                       sender='no-reply@feedingtube.host',
                       recipients=[email])
         msg.body = 'Your images for {0} are attached as a zip file.'.format(tag)
         # attach the zipfile to the email
-        zipfile = '.'.join([clean_tag, 'zip'])
+        zippy = '.'.join([clean_tag, 'zip'])
         os.chdir(path)
-        with app.open_resource(zipfile) as z:
-            msg.attach(filename=zipfile, content_type="archive/zip", data=z.read())
+        import zipfile
+        with zipfile.ZipFile(zippy, 'w') as z:
+            for key in bucket.objects.all():
+                bucket.download_file(key.key, key.key)
+                z.write(key.key)
+                os.remove(key.key)
+                key.delete()
+        bucket.delete()
+
+        with app.open_resource(os.path.join(path, zippy)) as z:
+            msg.attach(filename=zippy, content_type="archive/zip", data=z.read())
         # send the email
         os.chdir(APP_ROOT)
         mail.send(msg)
         # wipe path
         shutil.rmtree(path)
         # after rmtree, zip files bubble up -- kill 'em!
-        if os.path.exists(zipfile):
-            os.remove(zipfile)
+        if os.path.exists(zippy):
+            os.remove(zippy)
 
 
 @app.route('/', methods=['GET', 'POST'])
