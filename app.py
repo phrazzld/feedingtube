@@ -1,48 +1,59 @@
-import os
-import shutil
-from flask import Flask, render_template, request, flash, redirect, url_for, session
-from flask_mail import Mail, Message
-from celery import Celery
-from bs4 import BeautifulSoup
-import requests
-from PIL import Image
-from StringIO import StringIO
+# mgmt pkgs
+import os                               # file and dir mgmt
+import shutil                           # path vaporization
+from bs4 import BeautifulSoup           # parsing xml
+import requests                         # pulling web content
+from PIL import Image                   # treating web content as an img
+from StringIO import StringIO           # glue requests and PIL
+from ratelimit import rate_limited      # comply with Flickr's API policy
 
-# initialize flask app and configs
+
+# flask
+from flask import Flask, render_template, request, flash, redirect, session
+# initialize flask app
 app = Flask(__name__, instance_relative_config=True)
+# pull general configurations
 app.config.from_object('config')
+# pull secret configurations from instance/
 app.config.from_pyfile('config.py')
+# know project root location for navigating file downloads
+app_root = os.path.join(os.path.dirname(__file__))
 
-APP_ROOT = os.path.join(os.path.dirname(__file__))
-# load environment variables
-flickr_key = app.config['FLICKR_API_KEY']
-flickr_secret = app.config['FLICKR_API_SECRET']
 
-# start up celery
+# celery
+from celery import Celery
 celery = Celery(app.name, broker=app.config['BROKER_URL'])
 celery.conf.update(app.config)
 
-# initialize mail
+
+# flask_mail
+from flask_mail import Mail, Message
 mail = Mail(app)
 
-# initialize flickr object
-import flickr_api, json, urllib
-from ratelimit import rate_limited
-flickr_api.set_keys(api_key = flickr_key, api_secret = flickr_secret)
-from flickr_api.api import flickr
 
-# initialize boto for access to Amazon S3
+# flickr_api
+import flickr_api, json, urllib
+from flickr_api.api import flickr
+flickr_key = app.config['FLICKR_API_KEY']
+flickr_secret = app.config['FLICKR_API_SECRET']
+# authorize access to flickr
+flickr_api.set_keys(api_key = flickr_key, api_secret = flickr_secret)
+
+
+# amazon s3
 import boto3
 s3 = boto3.resource('s3')
 
-# create bucket directory if necessary
-def find_bucket(path):
-    if not os.path.exists(os.path.join(APP_ROOT, 'foodstuff')):
-        os.mkdir(os.path.join(APP_ROOT, 'foodstuff'))
+
+
+
+def set_up_local_bucket(path):
+    if not os.path.exists(os.path.join(app_root, 'foodstuff')):
+        os.mkdir(os.path.join(app_root, 'foodstuff'))
     if not os.path.exists(path):
         os.mkdir(path)
 
-# ratelimit each hit against flickrapi
+# only hit the Flickr API 1/s
 @rate_limited(1)
 def get_photo_page(tag, per_page, page):
     flickr_results = flickr.photos.search(tags=tag, per_page=per_page, page=page)
@@ -65,20 +76,14 @@ def fill_up(tag, bucketname, path, amount=10):
     for page in range(1, total_pages):
         for photo in silo.find_all('photo'):
             photo_id = photo['id']
-            # download photo to path
             sizes = get_photo_sizes(photo_id)
-            best = None
-            best = sizes[-1]['source']
-            if best:
-                name = photo_id + ''.join(e for e in photo['title'] if e.isalnum())
-                # ensure name is not too long
-                name = '.'.join([name[:100], 'jpg'])
-                # remove unicode chars
-                name = name.encode('utf-8','ignore').decode('utf-8')
-                r = requests.get(best)
+            image_source = None
+            image_source = sizes[-1]['source'] # always grab the big img
+            if image_source:
+                name = name_img_file(photo_id, photo['title'])
+                r = requests.get(image_source)
                 i = Image.open(StringIO(r.content))
                 i.save(os.path.join(path, name), "JPEG")
-                #urllib.urlretrieve(best, os.path.join(path, name))
                 s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
                 os.remove(os.path.join(path, name))
             img_num += 1
@@ -86,8 +91,18 @@ def fill_up(tag, bucketname, path, amount=10):
                 return
         silo = get_photo_page(tag, 500, page+1)
 
+# strip a string on non-alphanumeric characters
+def stripped(string):
+    return ''.join(e for e in string if e.isalnum())
 
-# feedingtube main function
+# format image filename properly
+def name_img_file(img_id, title):
+    name = img_id + stripped(title)
+    name = '.'.join([name[:100], 'jpg'])
+    name = name.encode('utf-8', 'ignore').decode('utf-8')
+    return name
+
+# process user request for images
 @celery.task
 def get_food(email, tag, amount):
     with app.app_context():
@@ -96,14 +111,13 @@ def get_food(email, tag, amount):
         container = email + clean_tag
         container = ''.join(e for e in container if e.isalnum())
         bucketname = 'feedingtube-a-' + ''.join(e for e in email if e.isalnum()) + '-' + clean_tag
-        path = os.path.join(APP_ROOT, 'foodstuff', container)
-        # fresh S3 bucket
+        path = os.path.join(app_root, 'foodstuff', container)
+        # fresh s3 bucket
         bucket = s3.create_bucket(Bucket=bucketname)
-        find_bucket(path)
-        # fill with images
+        # nav to temporary directory to process file downloads
+        set_up_local_bucket(path)
+        # plumb images from flickr into local dir, then to s3
         fill_up(tag, bucketname, path, amount)
-        # zip directory contents
-        #shutil.make_archive(clean_tag, 'zip', path)
         # build the email
         msg = Message(subject='Dinner\'s ready!',
                       sender='no-reply@feedingtube.host',
@@ -119,34 +133,50 @@ def get_food(email, tag, amount):
                 z.write(key.key)
                 os.remove(key.key)
                 key.delete()
-        bucket.delete()
+        bucket.delete()             # garbage cleanup
 
+        # attach the zipfile to the email
         with app.open_resource(os.path.join(path, zippy)) as z:
             msg.attach(filename=zippy, content_type="archive/zip", data=z.read())
-        # send the email
-        os.chdir(APP_ROOT)
-        mail.send(msg)
-        # wipe path
-        shutil.rmtree(path)
-        # after rmtree, zip files bubble up -- kill 'em!
+        os.chdir(app_root)          # go home
+        mail.send(msg)              # send the email
+        shutil.rmtree(path)         # garbage cleanup
         if os.path.exists(zippy):
-            os.remove(zippy)
+            os.remove(zippy)        # garbage cleanup
 
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    # user is just getting here, show them the page
     if request.method == 'GET':
-        return render_template('index.html', email=session.get('email', ''), tag=session.get('tag', ''), amount=session.get('amount', ''))
+        return render_template('index.html',
+                               email=session.get('email', ''),
+                               tag=session.get('tag', ''),
+                               amount=session.get('amount', ''))
+    # user submitted the form, process their request
+    # pull form values
     email = request.form['email']
     tag = request.form['tag']
     amount = request.form['amount']
+    # don't clear the form on form submit
     session['email'] = email
     session['tag'] = tag
     session['amount'] = amount
+    # queue the user's request for images
     get_food.delay(email, tag, int(amount))
-    flash('Sometimes this part takes a while. We\'ll send it all over to {0} when it\'s ready. Thanks for being patient!'.format(email))
-    return render_template('index.html', email=session.get('email', ''), tag=session.get('tag', ''), amount=session.get('amount', ''))
+    # build a message that lets the user know we're working on their request
+    flash_message = "Sometimes this part takes a while."
+    flash_message += "\nWe'll send it all over to {0} as soon as it's ready.".format(email)
+    flash_message += "\nThank you for being patient!"
+    # show the user the message we just built
+    flash(flash_message)
+    # show index page with form unchanged
+    return render_template('index.html',
+                           email=session.get('email', ''),
+                           tag=session.get('tag', ''),
+                           amount=session.get('amount', ''))
 
 
+# run the application
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
