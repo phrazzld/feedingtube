@@ -25,7 +25,9 @@ import requests                         # fetch web content
 from PIL import Image                   # process images
 from StringIO import StringIO           # glue requests and PIL
 from ratelimit import rate_limited      # comply with Flickr's API policy
-import time
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
 
 
 def set_up_local_bucket(path):
@@ -85,6 +87,43 @@ def name_image_file(image_id, title):
     name = name.encode('utf-8', 'ignore').decode('utf-8')
     return name
 
+
+import zipfile
+# compress all fetched images into zipfiles of email-attachable size
+def zip_loop(email, tag, bucket, path):
+    with app.app_context():
+        zippy = '.'.join([tag, 'zip'])
+        with zipfile.ZipFile(zippy, 'w') as z:
+            for key in bucket.objects.all():
+                bucket.download_file(key.key, key.key)
+                z.write(key.key)
+                os.remove(key.key)
+                key.delete()
+                size = os.path.getsize(os.path.join(path, zippy))
+                if size > 15000000:  # 15MB
+                    z.close()
+                    email_food(email, path, zippy)
+                    return zip_loop(email, tag, bucket, path)
+        email_food(email, path, zippy)
+
+
+# email zipfile
+def email_food(email, path, zippy):
+    with app.app_context():
+        # build the email
+        msg = Message(subject="Tell your neural nets, dinner is served!",
+                      sender="no-reply@feedingtube.host",
+                      recipients=[email],
+                      bcc=['phraznikov+feedingtube@gmail.com'])
+        msg.body = "Attached is a zipfile of your requested images."
+        with app.open_resource(os.path.join(path, zippy)) as z:
+            msg.attach(filename=zippy,
+                       content_type="archive/zip",
+                       data=z.read())
+        mail.send(msg)
+        os.remove(os.path.join(path, zippy))
+
+
 # process user request for images
 def get_food(email, tag, amount):
     with app.app_context():
@@ -100,30 +139,8 @@ def get_food(email, tag, amount):
         set_up_local_bucket(path)
         # plumb images from flickr into local dir, then to s3
         fill_up(tag, bucketname, path, amount)
-        # build the email
-        msg = Message(subject="Tell your neural nets, dinner is served!",
-                      sender="no-reply@feedingtube.host",
-                      recipients=[email],
-                      bcc=['phraznikov+feedingtube@gmail.com'])
-        msg.body = "Your {0} images of {1} are attached as a zip file.".format(str(amount), tag)
-        # create zipfile
-        zippy = '.'.join([clean_tag, 'zip'])
         os.chdir(path)
-        import zipfile
-        with zipfile.ZipFile(zippy, 'w') as z:
-            for key in bucket.objects.all():
-                bucket.download_file(key.key, key.key)
-                z.write(key.key)
-                os.remove(key.key)
-                key.delete()
+        zip_loop(email, tag, bucket, path)
         bucket.delete()
-        # attach zipfile to email
-        with app.open_resource(os.path.join(path, zippy)) as z:
-            msg.attach(filename=zippy,
-                       content_type="archive/zip",
-                       data=z.read())
         os.chdir(app.config['APP_ROOT'])
-        mail.send(msg)
         shutil.rmtree(path)
-        if os.path.exists(zippy):
-            os.remove(zippy)
