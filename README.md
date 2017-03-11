@@ -36,6 +36,7 @@ $ aws configure
 [default]
 aws_access_key_id = YOUR_ACCESS_KEY
 aws_secret_access_key = YOUR_SECRET_KEY
+```
 
 Open three terminal windows and run the commands below. You will need to be in your virtual environment to start your RQ worker and the Flask local server, but not Redis. To get out of your virtual environment, just run `deactivate`.
 
