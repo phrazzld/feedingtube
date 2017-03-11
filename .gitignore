@@ -14,6 +14,7 @@ venv/
 
 # redis
 redis-stable/
+*.rdb
 
 # instance config
 instance/

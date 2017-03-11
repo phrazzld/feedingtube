@@ -17,7 +17,7 @@ app.config.from_pyfile('config.py')
 # rq
 from redis import Redis
 from rq import Queue
-q = Queue(connection=Redis())
+q = Queue(connection=Redis(), default_timeout=86400)  # timeout @ 1 day
 
 
 # bring in the feedtube
