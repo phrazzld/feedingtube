@@ -51,14 +51,14 @@ footer {
 <div class="container">
     <h1><span class="light">feeding</span><span class="heavy">tube</span></h1>
     <p class="lead">Fetch any number of images by tag, and use them to train your image classifiers.</p>
-    {% for message in get_flashed_messages() %}
-    <p class="flash-message">{{ message }}</p>
-    {% endfor %}
     <form action="" method="post" name="tube">
         <p>Email: <input type="text" name="email" value="{{ email }}"></p>
         <p>Tag: <input type="text" name="tag" value="{{ tag }}"></p>
         <p>Amount: <input type="text" name="amount" value="{{ amount }}"></p>
         <input type="submit" name="submit" value="Submit">
+        {% for message in get_flashed_messages() %}
+        <p class="flash-message">{{ message }}</p>
+        {% endfor %}
     </form>
 </div>
 <footer id="site-info">
