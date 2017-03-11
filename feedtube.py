@@ -12,6 +12,7 @@ flickr_api.set_keys(api_key = flickr_key, api_secret = flickr_secret)
 # amazon s3
 import boto3
 s3 = boto3.resource('s3')
+client = boto3.client('s3')
 
 # flask_mail
 from flask_mail import Mail, Message
@@ -36,17 +37,20 @@ def set_up_local_bucket(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
+
 @rate_limited(1)
 def get_image_page(tag, per_page, page):
     results = flickr.photos.search(tags=tag, per_page=per_page, page=page)
     soup = BeautifulSoup(results, 'lxml-xml')
     return soup
 
+
 @rate_limited(1)
 def get_image_sizes(image_id):
     sizes = flickr.photos.getSizes(photo_id=image_id)
     soup = BeautifulSoup(sizes, 'lxml-xml').find_all('size')
     return soup
+
 
 def fill_up(tag, bucketname, path, amount):
     silo = get_image_page(tag, 500, 1)
@@ -76,9 +80,11 @@ def fill_up(tag, bucketname, path, amount):
                 return
         silo = get_image_page(tag, 500, page+1)
 
+
 # strip a string of non-alphanumeric chars
 def stripped(s):
     return ''.join(e for e in s if e.isalnum())
+
 
 # format image filename properly
 def name_image_file(image_id, title):
@@ -89,37 +95,32 @@ def name_image_file(image_id, title):
 
 
 import zipfile
-# compress all fetched images into zipfiles of email-attachable size
-def zip_loop(email, tag, bucket, path):
+def email_zipfile_url(email, tag, bucket, path, bucketname):
     with app.app_context():
         zippy = '.'.join([tag, 'zip'])
         with zipfile.ZipFile(zippy, 'w') as z:
             for key in bucket.objects.all():
-                bucket.download_file(key.key, key.key)
-                z.write(key.key)
-                os.remove(key.key)
-                key.delete()
-                size = os.path.getsize(os.path.join(path, zippy))
-                if size > 15000000:  # 15MB
-                    z.close()
-                    email_food(email, path, zippy)
-                    return zip_loop(email, tag, bucket, path)
-        email_food(email, path, zippy)
-
-
-# email zipfile
-def email_food(email, path, zippy):
-    with app.app_context():
-        # build the email
+                ext = key.key.split('.')[1]
+                if ext not in ('jpg', 'jpeg'):
+                    key.delete()
+                else:
+                    bucket.download_file(key.key, key.key)
+                    z.write(key.key)
+                    os.remove(key.key)
+                    key.delete()
+        s3.Object(bucketname, zippy).put(Body=open(os.path.join(path, zippy), 'rb'))
+        url = client.generate_presigned_url(
+            ClientMethod='get_object',
+            Params={
+                'Bucket': bucketname,
+                'Key': zippy
+            },
+            ExpiresIn=3600 * 24 * 3 # three days
+        )
         msg = Message(subject="Tell your neural nets, dinner is served!",
                       sender="no-reply@feedingtube.host",
-                      recipients=[email],
-                      bcc=['phraznikov+feedingtube@gmail.com'])
-        msg.body = "Attached is a zipfile of your requested images."
-        with app.open_resource(os.path.join(path, zippy)) as z:
-            msg.attach(filename=zippy,
-                       content_type="archive/zip",
-                       data=z.read())
+                      recipients=[email])
+        msg.body = "Use this link to download the images you requested: {0}\n\nNote: this link will only be valid for three days.".format(url)
         mail.send(msg)
         os.remove(os.path.join(path, zippy))
 
@@ -140,7 +141,6 @@ def get_food(email, tag, amount):
         # plumb images from flickr into local dir, then to s3
         fill_up(tag, bucketname, path, amount)
         os.chdir(path)
-        zip_loop(email, tag, bucket, path)
-        bucket.delete()
+        email_zipfile_url(email, tag, bucket, path, bucketname)
         os.chdir(app.config['APP_ROOT'])
         shutil.rmtree(path)
