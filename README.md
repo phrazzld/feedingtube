@@ -37,16 +37,16 @@ $ aws configure
 aws_access_key_id = YOUR_ACCESS_KEY
 aws_secret_access_key = YOUR_SECRET_KEY
 
-Open three terminal windows and run the commands below. You will need to be in your virtual environment to start your Celery worker and the Flask local server, but not Redis. To get out of your virtual environment, just run `deactivate`.
+Open three terminal windows and run the commands below. You will need to be in your virtual environment to start your RQ worker and the Flask local server, but not Redis. To get out of your virtual environment, just run `deactivate`.
 
 (terminal 1) `$ ./run-redis.sh`
 
-(terminal 2) `(venv) $ celery worker -A app.celery --loglevel=info`
+(terminal 2) `(venv) $ rqworker`
 
 (terminal 3) `(venv) $ python app.py`
 
 ## Using feedingtube
-Okay, so now you've set up feedingtube on your local machine and you've got your three terminal windows running Redis, Celery, and the Flask server. Open your favorite web browser and go to localhost:5000.
+Okay, so now you've set up feedingtube on your local machine and you've got your three terminal windows running Redis, RQ, and the Flask server. Open your favorite web browser and go to localhost:5000.
 
 Enter your email in the *email* field, "apple" in the *tag* field, and "20" in the *amount* field, and submit the form. You should see a message in red thanking you for your patience as your images are fetched.
 
