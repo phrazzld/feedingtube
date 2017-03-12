@@ -55,7 +55,8 @@ def get_image_sizes(image_id):
 
 def fill_up(tag, bucketname, path, amount):
     silo = get_image_page(tag, 100, 1)
-    total = int(silo.photos['total'])
+    # TODO: elegantly handle 1GB+ quantities of images (500 ~= 1GB zipped)
+    total = 500  #int(silo.photos['total'])
     if amount > total or amount <= 0:
         amount = total
     total_pages = total / 100 + 1
