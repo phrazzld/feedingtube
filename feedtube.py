@@ -40,6 +40,7 @@ def set_up_local_bucket(path):
 
 @rate_limited(1)
 def get_image_page(tag, per_page, page):
+    # TODO: optimize for memory
     results = flickr.photos.search(tags=tag, per_page=per_page, page=page)
     soup = BeautifulSoup(results, 'lxml-xml')
     return soup
@@ -53,13 +54,15 @@ def get_image_sizes(image_id):
 
 
 def fill_up(tag, bucketname, path, amount):
-    silo = get_image_page(tag, 500, 1)
+    # TODO: optimize for memory
+    silo = get_image_page(tag, 100, 1)
     total = int(silo.photos['total'])
     if amount > total or amount <= 0:
         amount = total
     total_pages = total / 500 + 1
     image_num = 1
     for page in range(1, total_pages):
+        # TODO: optimize for memory
         for image in silo.find_all('photo'):
             try:
                 image_id = image['id']
@@ -68,6 +71,7 @@ def fill_up(tag, bucketname, path, amount):
                 image_source = sizes[-1]['source'] # always grab biggest img
                 if image_source:
                     name = name_image_file(image_id, image['title'])
+                    # TODO: optimize for memory
                     r = requests.get(image_source)
                     i = Image.open(StringIO(r.content)).convert('RGB')
                     i.save(os.path.join(path, name), 'JPEG')
@@ -78,7 +82,7 @@ def fill_up(tag, bucketname, path, amount):
             image_num += 1
             if image_num > amount:
                 return
-        silo = get_image_page(tag, 500, page+1)
+        silo = get_image_page(tag, 100, page+1)
 
 
 # strip a string of non-alphanumeric chars
@@ -99,6 +103,7 @@ def email_zipfile_url(email, tag, bucket, path, bucketname):
     with app.app_context():
         zippy = '.'.join([tag, 'zip'])
         with zipfile.ZipFile(zippy, 'w') as z:
+            # TODO: optimize for memory
             for key in bucket.objects.all():
                 ext = key.key.split('.')[1]
                 if ext not in ('jpg', 'jpeg'):
@@ -115,7 +120,7 @@ def email_zipfile_url(email, tag, bucket, path, bucketname):
                 'Bucket': bucketname,
                 'Key': zippy
             },
-            ExpiresIn=3600 * 24 * 3 # three days
+            ExpiresIn=3600*24*3 # three days
         )
         msg = Message(subject="Tell your neural nets, dinner is served!",
                       sender="no-reply@feedingtube.host",
