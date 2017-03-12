@@ -54,15 +54,13 @@ def get_image_sizes(image_id):
 
 
 def fill_up(tag, bucketname, path, amount):
-    # TODO: optimize for memory
     silo = get_image_page(tag, 100, 1)
     total = int(silo.photos['total'])
     if amount > total or amount <= 0:
         amount = total
-    total_pages = total / 500 + 1
+    total_pages = total / 100 + 1
     image_num = 1
-    for page in range(1, total_pages):
-        # TODO: optimize for memory
+    for page in xrange(1, total_pages):
         for image in silo.find_all('photo'):
             try:
                 image_id = image['id']
@@ -71,10 +69,15 @@ def fill_up(tag, bucketname, path, amount):
                 image_source = sizes[-1]['source'] # always grab biggest img
                 if image_source:
                     name = name_image_file(image_id, image['title'])
-                    # TODO: optimize for memory
                     r = requests.get(image_source)
-                    i = Image.open(StringIO(r.content)).convert('RGB')
-                    i.save(os.path.join(path, name), 'JPEG')
+                    try:
+                        r.raise_for_status()
+                    except Exception as exc:
+                        print("There was a problem: {0}".format(exc))
+                    image_file = open(os.path.join(path, name), 'wb')
+                    for chunk in r.iter_content(100000):
+                        image_file.write(chunk)
+                    image_file.close()
                     s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
                     os.remove(os.path.join(path, name))
             except IOError as e:
@@ -103,7 +106,6 @@ def email_zipfile_url(email, tag, bucket, path, bucketname):
     with app.app_context():
         zippy = '.'.join([tag, 'zip'])
         with zipfile.ZipFile(zippy, 'w') as z:
-            # TODO: optimize for memory
             for key in bucket.objects.all():
                 ext = key.key.split('.')[1]
                 if ext not in ('jpg', 'jpeg'):

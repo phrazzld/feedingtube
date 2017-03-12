@@ -17,6 +17,7 @@ docutils==0.13.1
 flickr-api==0.5
 futures==3.0.5
 gunicorn==19.7.0
+inflection==0.3.1
 itsdangerous==0.24
 jmespath==0.9.1
 kombu==4.0.2
