@@ -14,16 +14,45 @@ app.config.from_object('config')
 app.config.from_pyfile('config.py')
 
 
-# rq
-from redis import Redis
-from rq import Queue
-q = Queue(connection=Redis(), default_timeout=86400)  # timeout @ 1 day
-
-
 # bring in the feedtube
 import feedtube
+# and management
+import moirai
 
 
+def handle_request(email, tag, amount):
+    # save session info
+    save_session(email, tag, amount)
+    # handle user request
+    queue_feedtube(email, tag, int(amount))
+    # let the user know we're processing their request
+    flash(build_flash_message(email))
+
+
+def queue_feedtube(email, tag, amount):
+    # don't let fat requests block quick ones
+    if amount >= 150:
+        return moirai.atropos.enqueue(feedtube.get_food, email, tag, amount)
+    elif amount >= 50:
+        return moirai.lachesis.enqueue(feedtube.get_food, email, tag, amount)
+    else:
+        return moirai.clotho.enqueue(feedtube.get_food, email, tag, amount)
+
+
+def build_flash_message(email):
+    msg = "Sometimes this part takes a while."
+    msg += "We'll send it over to {0} as soon as it's ready.".format(email)
+    msg += "Thank you for your patience!"
+    return msg
+
+
+def save_session(email, tag, amount):
+    session['email'] = email
+    session['tag'] = tag
+    session['amount'] = amount
+
+
+# page logic
 @app.route('/', methods=['GET', 'POST'])
 def index():
     # user is just getting here, show them the page
@@ -32,24 +61,12 @@ def index():
                                email=session.get('email', ''),
                                tag=session.get('tag', ''),
                                amount=session.get('amount', ''))
-    # user submitted the form, process their request
     # pull form values
     email = request.form['email']
     tag = request.form['tag']
     amount = request.form['amount']
-    # don't clear the form on form submit
-    session['email'] = email
-    session['tag'] = tag
-    session['amount'] = amount
-    # queue the user's request for images
-    q.enqueue(feedtube.get_food,
-              email, tag, int(amount))
-    # build a message that lets the user know we're working on their request
-    flash_message = "Sometimes this part takes a while."
-    flash_message += "We'll send it all over to {0} as soon as it's ready.".format(email)
-    flash_message += "Thank you for being patient!"
-    # show the user the message we just built
-    flash(flash_message)
+    # lift heavy things
+    handle_request(email, tag, amount)
     # show index page with form unchanged
     return render_template('index.html',
                            email=session.get('email', ''),
