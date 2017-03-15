@@ -17,33 +17,17 @@ app.config.from_pyfile('config.py')
 # bring in the feedtube
 import feedtube
 # and management
-import moirai
+from moirai import queue_up
+from helpers import build_flash_message
 
 
 def handle_request(email, tag, amount):
     # save session info
     save_session(email, tag, amount)
-    # handle user request
-    queue_feedtube(email, tag, int(amount))
+    # pass user request to background workers
+    queue_up(email, tag, int(amount))
     # let the user know we're processing their request
     flash(build_flash_message(email))
-
-
-def queue_feedtube(email, tag, amount):
-    # don't let fat requests block quick ones
-    if amount >= 150:
-        return moirai.atropos.enqueue(feedtube.get_food, email, tag, amount)
-    elif amount >= 50:
-        return moirai.lachesis.enqueue(feedtube.get_food, email, tag, amount)
-    else:
-        return moirai.clotho.enqueue(feedtube.get_food, email, tag, amount)
-
-
-def build_flash_message(email):
-    msg = "Sometimes this part takes a while."
-    msg += "We'll send it over to {0} as soon as it's ready.".format(email)
-    msg += "Thank you for your patience!"
-    return msg
 
 
 def save_session(email, tag, amount):

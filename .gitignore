@@ -1,6 +1,5 @@
 # feedingtube
 foodstuff/
-ft_debugging.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -22,6 +21,3 @@ instance/
 
 # debugging
 logs/
-
-# celery
-celerybeat-schedule
