@@ -55,8 +55,7 @@ def get_image_sizes(image_id):
 
 def fill_up(tag, bucketname, path, amount):
     silo = get_image_page(tag, 100, 1)
-    # TODO: elegantly handle 1GB+ quantities of images (500 ~= 1GB zipped)
-    total = 500  #int(silo.photos['total'])
+    total = int(silo.photos['total'])
     if amount > total or amount <= 0:
         amount = total
     total_pages = total / 100 + 1
@@ -93,7 +92,7 @@ import zipfile
 def zipper(email, tag, bucket, path, bucketname):
     with app.app_context():
         zippy = '.'.join([tag, 'zip'])
-        with zipfile.ZipFile(zippy, 'w') as z:
+        with zipfile.ZipFile(zippy, 'w', allowZip64=True) as z:
             for key in bucket.objects.all():
                 ext = key.key.split('.')[1]
                 if ext not in ('jpg', 'jpeg'):
