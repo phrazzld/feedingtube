@@ -80,8 +80,8 @@ def fill_up(tag, bucketname, path, amount):
                     image_file.close()
                     s3.Object(bucketname, name).put(Body=open(os.path.join(path, name), 'rb'))
                     os.remove(os.path.join(path, name))
-            except Exception as e:
-                print("Exception ({0}): {1}").format(e.errno, e.strerror)
+            except Exception as exc:
+                print("There was a problem: {0}".format(exc))
             image_num += 1
             if image_num > amount:
                 return
