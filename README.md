@@ -53,3 +53,6 @@ Enter your email in the *email* field, "apple" in the *tag* field, and "20" in t
 
 ### Behind the scenes
 feedingtube is going to the FlickrAPI and asking for *amount* of *tag* pictures. It downloads them one-by-one, zips them up, and emails them to *email*.
+
+## License
+[MIT](https://opensource.org/licenses/MIT)
