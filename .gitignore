@@ -21,3 +21,7 @@ instance/
 
 # debugging
 logs/
+
+# TensorFlow graphs and labels
+*.pb
+*.txt

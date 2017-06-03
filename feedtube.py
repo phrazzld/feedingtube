@@ -2,6 +2,9 @@
 from app import app
 from helpers import stripped, name_image_file
 
+# use Inception v3 to classify images for relevancy
+from label_image import label
+
 # flickr_api
 import flickr_api, json, urllib
 from flickr_api.api import flickr
@@ -19,8 +22,8 @@ client = boto3.client('s3')
 from flask_mail import Mail, Message
 mail = Mail(app)
 
-# mgmt pkgs
-import os                               # file and dir mgmt
+# management packages
+import os                               # file and dir management
 import shutil                           # path disintegration
 from bs4 import BeautifulSoup           # parse xml
 import requests                         # fetch web content
@@ -31,29 +34,29 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-
+# make a foodstuff bucket for this request's images
 def set_up_local_bucket(path):
     if not os.path.exists(os.path.join(app.config['APP_ROOT'], 'foodstuff')):
         os.mkdir(os.path.join(app.config['APP_ROOT'], 'foodstuff'))
     if not os.path.exists(path):
         os.mkdir(path)
 
-
+# grab content from a page of Flickr search results
 @rate_limited(1)
 def get_image_page(tag, per_page, page):
     results = flickr.photos.search(tags=tag, per_page=per_page, page=page)
     soup = BeautifulSoup(results, 'lxml-xml')
     return soup
 
-
+# grab all the sizes for a given image
 @rate_limited(1)
 def get_image_sizes(image_id):
     sizes = flickr.photos.getSizes(photo_id=image_id)
     soup = BeautifulSoup(sizes, 'lxml-xml').find_all('size')
     return soup
 
-
-def fill_up(tag, bucketname, path, amount):
+# download images from Flickr into a local bucket and push it to S3
+def fill_up(tag, bucketname, path, amount, container):
     silo = get_image_page(tag, 100, 1)
     total = int(silo.photos['total'])
     if amount > total or amount <= 0:
@@ -68,6 +71,12 @@ def fill_up(tag, bucketname, path, amount):
                 image_source = None
                 image_source = sizes[-1]['source'] # always grab biggest img
                 if image_source:
+                    """
+                    Now we've got a URL for our image.
+                    Let's plumb it through our graph file using label_image
+                    """
+                    prediction, confidence, label_path = label(image_source, container)
+                    print("pred: {0}, conf: {1}, path: {2}".format(prediction, confidence, label_path))
                     name = name_image_file(image_id, image['title'])
                     r = requests.get(image_source)
                     try:
@@ -87,7 +96,7 @@ def fill_up(tag, bucketname, path, amount):
                 return
         silo = get_image_page(tag, 100, page+1)
 
-
+# collect images into a zipfile on S3 and clean up
 import zipfile
 def zipper(email, tag, bucket, path, bucketname):
     with app.app_context():
@@ -114,7 +123,7 @@ def zipper(email, tag, bucket, path, bucketname):
         email_zips(email, url)
         os.remove(os.path.join(path, zippy))
 
-
+# email a link to the S3 zipfile
 def email_zips(email, url):
     with app.app_context():
         msg = Message(subject="Tell your neural nets, dinner is served!",
@@ -139,7 +148,7 @@ def get_food(email, tag, amount):
         # nav to tmp dir to process file downloads
         set_up_local_bucket(path)
         # plumb images from flickr into local dir, then to s3
-        fill_up(tag, bucketname, path, amount)
+        fill_up(tag, bucketname, path, amount, container)
         os.chdir(path)
         zipper(email, tag, bucket, path, bucketname)
         os.chdir(app.config['APP_ROOT'])

@@ -1,3 +1,11 @@
+"""
+Program: feedingtube
+Author: Phaedrus Raznikov
+
+Spend less time collecting and labeling images.
+Spend more time applying powerful image classifiers to meaningful problems.
+
+"""
 # mgmt pkgs
 import os                               # file and dir mgmt
 import shutil                           # path vaporization
